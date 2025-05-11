@@ -14,7 +14,7 @@ import (
 type Advertisement struct {
 	gorm.Model
 	// ContainerID unique container ID.
-	ContainerId uint `gorm:"index"`
+	ContainerID uint `gorm:"index"`
 	// Name advertisement name.
 	Name string
 	// URL advertisement URL.
@@ -46,7 +46,7 @@ const (
 type Image struct {
 	gorm.Model
 	// ContainerID unique container ID.
-	ContainerId uint `gorm:"index"`
+	ContainerID uint `gorm:"index"`
 	// Name image name.
 	Name string
 	// URL image URL.
@@ -56,7 +56,7 @@ type Image struct {
 type Video struct {
 	gorm.Model
 	// ContainerID unique container ID.
-	ContainerId uint `gorm:"index"`
+	ContainerID uint `gorm:"index"`
 	// Description video description.
 	Description string
 	// ExpirationDate expiration date.
@@ -92,7 +92,7 @@ func (advertisement Advertisement) Create(db *gorm.DB) error {
 	return db.Create(&advertisement).Error
 }
 
-// DeleteAdvertisement delete the advertisement matching advertisementId from the database.
+// DeleteAdvertisement delete the advertisement matching advertisementID from the database.
 func DeleteAdvertisement(db *gorm.DB, advertisementID uint) error {
 	return db.Delete(&Advertisement{}, advertisementID).Error
 }

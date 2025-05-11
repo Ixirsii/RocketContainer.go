@@ -1,0 +1,85 @@
+# ################################## Enums ################################### #
+
+enum AssetType {
+    AD,
+    IMAGE
+}
+
+enum VideoType {
+    CLIP,
+    EPISODE,
+    MOVIE
+}
+
+# Inputs
+
+input NewAdvertisement {
+    name: String!
+    url: String!
+}
+
+input NewAssetReference {
+    assetID: ID!
+    assetType: AssetType!
+    videoID: ID!
+}
+
+input NewImage {
+    name: String!
+    url: String!
+}
+
+input NewVideo {
+    description: String!
+    expirationDate: String!
+    playbackUrl: String!
+    title: String!
+    videoType: VideoType!
+}
+
+# ################################## Types ################################### #
+
+type Advertisement {
+    id: ID!
+    name: String!
+    url: String!
+}
+
+type AssetReference {
+    assetID: ID!
+    assetType: AssetType!
+}
+
+type Container {
+    ads: [Advertisement!]!
+    id: ID!
+    images: [Image!]!
+    name: String!
+    videos: [Video!]!
+}
+
+type Image {
+    id: ID!
+    name: String!
+    url: String!
+}
+
+type Video {
+    assets: [AssetReference!]!
+    description: String!
+    expirationDate: String!
+    id: ID!
+    playbackUrl: String!
+    title: String!
+    videoType: VideoType!
+}
+
+
+# ################################ Mutations ################################# #
+
+type Mutation {
+    createAdvertisement(input: NewAdvertisement!): Advertisement!
+    createAssetReference(input: NewAssetReference!): AssetReference!
+    createImage(input: NewImage!): Image!
+    createVideo(input: NewVideo!): Video!
+}

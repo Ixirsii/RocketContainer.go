@@ -16,7 +16,7 @@ type AdvertisementContainer struct {
 
 // AssetReference asset (advertisement or image) reference container/controller type.
 type AssetReference struct {
-	AssetId   uint
+	AssetID   uint
 	AssetType data.AssetType
 }
 
