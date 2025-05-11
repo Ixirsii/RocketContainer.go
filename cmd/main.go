@@ -1,21 +1,35 @@
 package main
 
 import (
-	"fmt"
+	"github.com/dotenv-org/godotenvvault"
+	"go.uber.org/zap"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"moul.io/zapgorm2"
+	"os"
 )
 
-//TIP <p>To run your code, right-click the code and select <b>Run</b>.</p> <p>Alternatively, click
-// the <icon src="AllIcons.Actions.Execute"/> icon in the gutter and select the <b>Run</b> menu item from here.</p>
-
 func main() {
-	//TIP <p>Press <shortcut actionId="ShowIntentionActions"/> when your caret is at the underlined text
-	// to see how GoLand suggests fixing the warning.</p><p>Alternatively, if available, click the lightbulb to view possible fixes.</p>
-	s := "gopher"
-	fmt.Printf("Hello and welcome, %s!\n", s)
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
 
-	for i := 1; i <= 5; i++ {
-		//TIP <p>To start your debugging session, right-click your code in the editor and select the Debug option.</p> <p>We have set one <icon src="AllIcons.Debugger.Db_set_breakpoint"/> breakpoint
-		// for you, but you can always add more by pressing <shortcut actionId="ToggleLineBreakpoint"/>.</p>
-		fmt.Println("i =", 100/i)
+	dotenvErr := godotenvvault.Load()
+	if dotenvErr != nil {
+		logger.Fatal("failed to load .env file", zap.Error(dotenvErr))
+	}
+
+	gormLogger := zapgorm2.New(logger)
+	gormLogger.SetAsDefault()
+
+	host := os.Getenv("DB_HOST")
+	name := os.Getenv("DB_NAME")
+	pass := os.Getenv("DB_PASSWORD")
+	port := os.Getenv("DB_PORT")
+	user := os.Getenv("DB_USER")
+	dsn := "host=" + host + " user=" + user + " pass=" + pass + " dbname=" + name + " port=" + port
+
+	db, dbErr := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormLogger})
+	if dbErr != nil {
+		logger.Fatal("failed to connect to database", zap.Error(dbErr))
 	}
 }
