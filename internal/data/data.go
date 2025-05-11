@@ -2,59 +2,51 @@
 package data
 
 import (
+	"RocketContainer.go/graph/model"
 	"database/sql/driver"
+	"go.uber.org/zap"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"moul.io/zapgorm2"
+	"os"
 )
+
+var database *gorm.DB
+var logger *zap.Logger
 
 /* ****************************************************************************************************************** *
  *                                                  Type definitions                                                  *
  * ****************************************************************************************************************** */
 
-// Advertisement database type.
-type Advertisement struct {
+// Asset database type.
+type Asset struct {
 	gorm.Model
-	// ContainerID unique container ID.
-	ContainerID uint `gorm:"index"`
-	// Name advertisement name.
-	Name string
-	// URL advertisement URL.
-	URL string
-}
-
-// AssetReference asset (advertisement or image) reference database type.
-type AssetReference struct {
-	gorm.Model
-	// AssetID unique asset ID.
-	AssetID uint
 	// AssetType asset type.
 	AssetType AssetType `gorm:"type:asset_type"`
-	// VideoID unique video ID.
+	// ContainerID unique container ID.
+	ContainerID uint `gorm:"index"`
+	// Name asset name.
+	Name string
+	// URL asset URL.
+	URL string
+	// VideoID video ID foreign key.
 	VideoID uint `gorm:"index"`
 }
 
-// AssetType asset reference type (AD or IMAGE).
+// AssetType asset reference type (ADVERTISEMENT or IMAGE).
 type AssetType string
 
 const (
-	// AdvertisementAsset type.
-	AdvertisementAsset AssetType = "AD"
-	// ImageAsset type.
-	ImageAsset AssetType = "IMAGE"
+	// Advertisement type.
+	Advertisement AssetType = "ADVERTISEMENT"
+	// Image type.
+	Image AssetType = "IMAGE"
 )
-
-// Image database type.
-type Image struct {
-	gorm.Model
-	// ContainerID unique container ID.
-	ContainerID uint `gorm:"index"`
-	// Name image name.
-	Name string
-	// URL image URL.
-	URL string
-}
 
 type Video struct {
 	gorm.Model
+	// Assets that belong to the video.
+	Assets []Asset
 	// ContainerID unique container ID.
 	ContainerID uint `gorm:"index"`
 	// Description video description.
@@ -82,57 +74,104 @@ const (
 )
 
 /* ****************************************************************************************************************** *
- *                                                Type implementations                                                *
+ *                                                     Functions                                                      *
  * ****************************************************************************************************************** */
 
-/* ************************************************* Advertisement ************************************************** */
+// InitDb initialize database.
+func InitDb() {
+	logger = zap.L().Named("database")
+	gormLogger := zapgorm2.New(logger)
+	gormLogger.SetAsDefault()
 
-// Create the advertisement in the database.
-func (advertisement Advertisement) Create(db *gorm.DB) error {
-	return db.Create(&advertisement).Error
+	dbHost := os.Getenv("DB_HOST")
+	dbName := os.Getenv("DB_NAME")
+	dbPass := os.Getenv("DB_PASSWORD")
+	dbPort := os.Getenv("DB_PORT")
+	dbUser := os.Getenv("DB_USER")
+
+	dsn := "host=" + dbHost + " user=" + dbUser + " password=" + dbPass + " dbname=" + dbName + " port=" + dbPort
+
+	db, dbErr := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormLogger})
+	if dbErr != nil {
+		logger.Fatal("Failed to connect to database", zap.Error(dbErr))
+	}
+
+	migrationErr := database.AutoMigrate(&Asset{}, &Video{})
+	if migrationErr != nil {
+		logger.Fatal("Failed to migrate database", zap.Error(migrationErr))
+	}
+
+	database = db
 }
 
-// DeleteAdvertisement delete the advertisement matching advertisementID from the database.
-func DeleteAdvertisement(db *gorm.DB, advertisementID uint) error {
-	return db.Delete(&Advertisement{}, advertisementID).Error
+/* ************************************************* Asset ************************************************** */
+
+// CreateAsset create the asset in the database.
+func CreateAsset(new model.NewAsset) (Asset, error) {
+	logger.Debug(
+		"Creating asset",
+		zap.String("assetType", string(new.AssetType)),
+		zap.Uint("containerID", new.ContainerID),
+		zap.String("name", new.Name),
+		zap.String("url", new.URL),
+		zap.Uint("videoID", new.VideoID),
+	)
+
+	asset := Asset{
+		AssetType:   AssetType(new.AssetType),
+		ContainerID: new.ContainerID,
+		Name:        new.Name,
+		URL:         new.URL,
+		VideoID:     new.VideoID,
+	}
+	result := database.Create(&asset)
+
+	return asset, result.Error
 }
 
-// GetAdvertisements get all advertisements matching containerID.
-func GetAdvertisements(db *gorm.DB, containerID uint) ([]Advertisement, error) {
-	var advertisements []Advertisement
-	result := db.Where("container_id = ?", containerID).Find(&advertisements)
+// DeleteAsset delete the asset matching assetID from the database.
+func DeleteAsset(assetID uint) error {
+	logger.Debug("Deleting asset", zap.Uint("assetID", assetID))
 
-	return advertisements, result.Error
+	return database.Delete(&Asset{}, assetID).Error
 }
 
-// Update the advertisement in the database.
-func (advertisement Advertisement) Update(db *gorm.DB) error {
-	return db.Save(&advertisement).Error
+// GetAssets get all assets matching containerID and assetType.
+func GetAssets(containerID uint, assetType AssetType) ([]Asset, error) {
+	logger.Debug(
+		"Getting assets",
+		zap.Uint("containerID", containerID),
+		zap.String("assetType", string(assetType)),
+	)
+
+	var assets []Asset
+	result := database.Where("container_id = ? AND asset_type = ?", containerID, assetType).Find(&assets)
+
+	return assets, result.Error
 }
 
-/* ************************************************ Asset reference ************************************************* */
+// UpdateAsset update the asset in the database.
+func UpdateAsset(update model.UpdateAsset) error {
+	logger.Debug(
+		"Updating asset",
+		zap.String("assetType", string(update.AssetType)),
+		zap.Uint("containerID", update.ContainerID),
+		zap.Uint("id", update.ID),
+		zap.String("name", update.Name),
+		zap.String("url", update.URL),
+		zap.Uint("videoID", update.VideoID),
+	)
 
-// Create the asset reference in the database.
-func (assetReference AssetReference) Create(db *gorm.DB) error {
-	return db.Create(&assetReference).Error
-}
+	asset := Asset{
+		Model:       gorm.Model{ID: update.ID},
+		AssetType:   AssetType(update.AssetType),
+		ContainerID: update.ContainerID,
+		Name:        update.Name,
+		URL:         update.URL,
+		VideoID:     update.VideoID,
+	}
 
-// DeleteAssetReference delete the asset reference matching assetReferenceID from the database.
-func DeleteAssetReference(db *gorm.DB, assetReferenceID uint) error {
-	return db.Delete(&AssetReference{}, assetReferenceID).Error
-}
-
-// GetAssetReferences get all asset references matching videoID.
-func GetAssetReferences(db *gorm.DB, videoID uint) ([]AssetReference, error) {
-	var assetReferences []AssetReference
-	result := db.Where("video_id = ?", videoID).Find(&assetReferences)
-
-	return assetReferences, result.Error
-}
-
-// Update the asset reference in the database.
-func (assetReference AssetReference) Update(db *gorm.DB) error {
-	return db.Save(&assetReference).Error
+	return database.Save(&asset).Error
 }
 
 /* *************************************************** Asset type *************************************************** */
@@ -147,54 +186,84 @@ func (assetType AssetType) Value() (driver.Value, error) {
 	return string(assetType), nil
 }
 
-/* ***************************************************** Image ****************************************************** */
-
-// Create the image in the database.
-func (image Image) Create(db *gorm.DB) error {
-	return db.Create(&image).Error
-}
-
-// DeleteImage delete the image matching imageID from the database.
-func DeleteImage(db *gorm.DB, imageID uint) error {
-	return db.Delete(&Image{}, imageID).Error
-}
-
-// GetImages get all images matching containerID.
-func GetImages(db *gorm.DB, containerID uint) ([]Image, error) {
-	var images []Image
-	result := db.Where("container_id = ?", containerID).Find(&images)
-
-	return images, result.Error
-}
-
-// Update the image in the database.
-func (image Image) Update(db *gorm.DB) error {
-	return db.Save(&image).Error
-}
-
 /* ***************************************************** Video ****************************************************** */
 
-// Create the video in the database.
-func (video Video) Create(db *gorm.DB) error {
-	return db.Create(&video).Error
+// CreateVideo create the video in the database.
+func CreateVideo(new model.NewVideo) (Video, error) {
+	logger.Debug(
+		"Creating video",
+		zap.Uint("containerID", new.ContainerID),
+		zap.String("description", new.Description),
+		zap.String("expirationDate", new.ExpirationDate),
+		zap.String("playbackUrl", new.PlaybackURL),
+		zap.String("title", new.Title),
+		zap.String("videoType", string(new.VideoType)),
+	)
+
+	video := Video{
+		ContainerID:    new.ContainerID,
+		Description:    new.Description,
+		ExpirationDate: new.ExpirationDate,
+		PlaybackURL:    new.PlaybackURL,
+		Title:          new.Title,
+		VideoType:      VideoType(new.VideoType),
+	}
+	result := database.Create(&video)
+
+	return video, result.Error
 }
 
 // DeleteVideo delete the video matching videoID from the database.
-func DeleteVideo(db *gorm.DB, videoID uint) error {
-	return db.Delete(&Video{}, videoID).Error
+func DeleteVideo(videoID uint) error {
+	logger.Debug("Deleting video", zap.Uint("videoID", videoID))
+
+	return database.Delete(&Video{}, videoID).Error
 }
 
-// GetVideos get all videos matching containerID.
-func GetVideos(db *gorm.DB, containerID uint) ([]Video, error) {
+// GetVideos get all videos.
+func GetVideos() ([]Video, error) {
+	logger.Debug("Getting all videos")
+
 	var videos []Video
-	result := db.Where("container_id = ?", containerID).Find(&videos)
+	result := database.Model(&Video{}).Preload("Assets").Find(&videos)
 
 	return videos, result.Error
 }
 
-// Update the video in the database.
-func (video Video) Update(db *gorm.DB) error {
-	return db.Save(&video).Error
+// GetVideosByContainer get all videos matching containerID.
+func GetVideosByContainer(containerID uint) ([]Video, error) {
+	logger.Debug("Getting videos", zap.Uint("containerID", containerID))
+
+	var videos []Video
+	result := database.Model(&Video{}).Preload("Assets").Where("container_id = ?", containerID).Find(&videos)
+
+	return videos, result.Error
+}
+
+// UpdateVideo update the video in the database.
+func UpdateVideo(update model.UpdateVideo) error {
+	logger.Debug(
+		"Updating video",
+		zap.Uint("containerID", update.ContainerID),
+		zap.Uint("id", update.ID),
+		zap.String("description", update.Description),
+		zap.String("expirationDate", update.ExpirationDate),
+		zap.String("playbackUrl", update.PlaybackURL),
+		zap.String("title", update.Title),
+		zap.String("videoType", string(update.VideoType)),
+	)
+
+	video := Video{
+		Model:          gorm.Model{ID: update.ID},
+		ContainerID:    update.ContainerID,
+		Description:    update.Description,
+		ExpirationDate: update.ExpirationDate,
+		PlaybackURL:    update.PlaybackURL,
+		Title:          update.Title,
+		VideoType:      VideoType(update.VideoType),
+	}
+
+	return database.Save(&video).Error
 }
 
 /* *************************************************** Video type *************************************************** */

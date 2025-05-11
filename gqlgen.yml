@@ -131,6 +131,7 @@ autobind:
 models:
   ID:
     model:
+      - github.com/99designs/gqlgen/graphql.UintID
       - github.com/99designs/gqlgen/graphql.ID
       - github.com/99designs/gqlgen/graphql.Int
       - github.com/99designs/gqlgen/graphql.Int64

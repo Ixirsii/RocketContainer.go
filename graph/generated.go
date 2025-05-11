@@ -40,45 +40,43 @@ type Config struct {
 
 type ResolverRoot interface {
 	Mutation() MutationResolver
+	Query() QueryResolver
 }
 
 type DirectiveRoot struct {
 }
 
 type ComplexityRoot struct {
-	Advertisement struct {
-		ID   func(childComplexity int) int
-		Name func(childComplexity int) int
-		URL  func(childComplexity int) int
-	}
-
-	AssetReference struct {
-		AssetID   func(childComplexity int) int
+	Asset struct {
 		AssetType func(childComplexity int) int
+		ID        func(childComplexity int) int
+		Name      func(childComplexity int) int
+		URL       func(childComplexity int) int
 	}
 
 	Container struct {
-		Ads    func(childComplexity int) int
-		ID     func(childComplexity int) int
-		Images func(childComplexity int) int
-		Name   func(childComplexity int) int
-		Videos func(childComplexity int) int
-	}
-
-	Image struct {
-		ID   func(childComplexity int) int
-		Name func(childComplexity int) int
-		URL  func(childComplexity int) int
+		Advertisements func(childComplexity int) int
+		ID             func(childComplexity int) int
+		Images         func(childComplexity int) int
+		Name           func(childComplexity int) int
+		Videos         func(childComplexity int) int
 	}
 
 	Mutation struct {
-		CreateAdvertisement  func(childComplexity int, input model.NewAdvertisement) int
-		CreateAssetReference func(childComplexity int, input model.NewAssetReference) int
-		CreateImage          func(childComplexity int, input model.NewImage) int
-		CreateVideo          func(childComplexity int, input model.NewVideo) int
+		CreateAsset func(childComplexity int, input model.NewAsset) int
+		CreateVideo func(childComplexity int, input model.NewVideo) int
+		DeleteAsset func(childComplexity int, input uint) int
+		DeleteVideo func(childComplexity int, input uint) int
+		UpdateAsset func(childComplexity int, input model.UpdateAsset) int
+		UpdateVideo func(childComplexity int, input model.UpdateVideo) int
 	}
 
 	Query struct {
+		Advertisements func(childComplexity int, containerID uint) int
+		Container      func(childComplexity int, containerID uint) int
+		Containers     func(childComplexity int) int
+		Images         func(childComplexity int, containerID uint) int
+		Videos         func(childComplexity int, containerID uint) int
 	}
 
 	Video struct {
@@ -93,10 +91,19 @@ type ComplexityRoot struct {
 }
 
 type MutationResolver interface {
-	CreateAdvertisement(ctx context.Context, input model.NewAdvertisement) (*model.Advertisement, error)
-	CreateAssetReference(ctx context.Context, input model.NewAssetReference) (*model.AssetReference, error)
-	CreateImage(ctx context.Context, input model.NewImage) (*model.Image, error)
-	CreateVideo(ctx context.Context, input model.NewVideo) (*model.Video, error)
+	CreateAsset(ctx context.Context, input model.NewAsset) (uint, error)
+	CreateVideo(ctx context.Context, input model.NewVideo) (uint, error)
+	DeleteAsset(ctx context.Context, input uint) (bool, error)
+	DeleteVideo(ctx context.Context, input uint) (bool, error)
+	UpdateAsset(ctx context.Context, input model.UpdateAsset) (bool, error)
+	UpdateVideo(ctx context.Context, input model.UpdateVideo) (bool, error)
+}
+type QueryResolver interface {
+	Advertisements(ctx context.Context, containerID uint) ([]*model.Asset, error)
+	Container(ctx context.Context, containerID uint) (*model.Container, error)
+	Containers(ctx context.Context) ([]*model.Container, error)
+	Images(ctx context.Context, containerID uint) ([]*model.Asset, error)
+	Videos(ctx context.Context, containerID uint) ([]*model.Video, error)
 }
 
 type executableSchema struct {
@@ -118,47 +125,40 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	_ = ec
 	switch typeName + "." + field {
 
-	case "Advertisement.id":
-		if e.complexity.Advertisement.ID == nil {
+	case "Asset.assetType":
+		if e.complexity.Asset.AssetType == nil {
 			break
 		}
 
-		return e.complexity.Advertisement.ID(childComplexity), true
+		return e.complexity.Asset.AssetType(childComplexity), true
 
-	case "Advertisement.name":
-		if e.complexity.Advertisement.Name == nil {
+	case "Asset.id":
+		if e.complexity.Asset.ID == nil {
 			break
 		}
 
-		return e.complexity.Advertisement.Name(childComplexity), true
+		return e.complexity.Asset.ID(childComplexity), true
 
-	case "Advertisement.url":
-		if e.complexity.Advertisement.URL == nil {
+	case "Asset.name":
+		if e.complexity.Asset.Name == nil {
 			break
 		}
 
-		return e.complexity.Advertisement.URL(childComplexity), true
+		return e.complexity.Asset.Name(childComplexity), true
 
-	case "AssetReference.assetID":
-		if e.complexity.AssetReference.AssetID == nil {
+	case "Asset.url":
+		if e.complexity.Asset.URL == nil {
 			break
 		}
 
-		return e.complexity.AssetReference.AssetID(childComplexity), true
+		return e.complexity.Asset.URL(childComplexity), true
 
-	case "AssetReference.assetType":
-		if e.complexity.AssetReference.AssetType == nil {
+	case "Container.advertisements":
+		if e.complexity.Container.Advertisements == nil {
 			break
 		}
 
-		return e.complexity.AssetReference.AssetType(childComplexity), true
-
-	case "Container.ads":
-		if e.complexity.Container.Ads == nil {
-			break
-		}
-
-		return e.complexity.Container.Ads(childComplexity), true
+		return e.complexity.Container.Advertisements(childComplexity), true
 
 	case "Container.id":
 		if e.complexity.Container.ID == nil {
@@ -188,62 +188,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Container.Videos(childComplexity), true
 
-	case "Image.id":
-		if e.complexity.Image.ID == nil {
+	case "Mutation.createAsset":
+		if e.complexity.Mutation.CreateAsset == nil {
 			break
 		}
 
-		return e.complexity.Image.ID(childComplexity), true
-
-	case "Image.name":
-		if e.complexity.Image.Name == nil {
-			break
-		}
-
-		return e.complexity.Image.Name(childComplexity), true
-
-	case "Image.url":
-		if e.complexity.Image.URL == nil {
-			break
-		}
-
-		return e.complexity.Image.URL(childComplexity), true
-
-	case "Mutation.createAdvertisement":
-		if e.complexity.Mutation.CreateAdvertisement == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_createAdvertisement_args(ctx, rawArgs)
+		args, err := ec.field_Mutation_createAsset_args(ctx, rawArgs)
 		if err != nil {
 			return 0, false
 		}
 
-		return e.complexity.Mutation.CreateAdvertisement(childComplexity, args["input"].(model.NewAdvertisement)), true
-
-	case "Mutation.createAssetReference":
-		if e.complexity.Mutation.CreateAssetReference == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_createAssetReference_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.CreateAssetReference(childComplexity, args["input"].(model.NewAssetReference)), true
-
-	case "Mutation.createImage":
-		if e.complexity.Mutation.CreateImage == nil {
-			break
-		}
-
-		args, err := ec.field_Mutation_createImage_args(ctx, rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Mutation.CreateImage(childComplexity, args["input"].(model.NewImage)), true
+		return e.complexity.Mutation.CreateAsset(childComplexity, args["input"].(model.NewAsset)), true
 
 	case "Mutation.createVideo":
 		if e.complexity.Mutation.CreateVideo == nil {
@@ -256,6 +211,109 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.CreateVideo(childComplexity, args["input"].(model.NewVideo)), true
+
+	case "Mutation.deleteAsset":
+		if e.complexity.Mutation.DeleteAsset == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteAsset_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteAsset(childComplexity, args["input"].(uint)), true
+
+	case "Mutation.deleteVideo":
+		if e.complexity.Mutation.DeleteVideo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteVideo_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeleteVideo(childComplexity, args["input"].(uint)), true
+
+	case "Mutation.updateAsset":
+		if e.complexity.Mutation.UpdateAsset == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateAsset_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateAsset(childComplexity, args["input"].(model.UpdateAsset)), true
+
+	case "Mutation.updateVideo":
+		if e.complexity.Mutation.UpdateVideo == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_updateVideo_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UpdateVideo(childComplexity, args["input"].(model.UpdateVideo)), true
+
+	case "Query.advertisements":
+		if e.complexity.Query.Advertisements == nil {
+			break
+		}
+
+		args, err := ec.field_Query_advertisements_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Advertisements(childComplexity, args["containerID"].(uint)), true
+
+	case "Query.container":
+		if e.complexity.Query.Container == nil {
+			break
+		}
+
+		args, err := ec.field_Query_container_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Container(childComplexity, args["containerID"].(uint)), true
+
+	case "Query.containers":
+		if e.complexity.Query.Containers == nil {
+			break
+		}
+
+		return e.complexity.Query.Containers(childComplexity), true
+
+	case "Query.images":
+		if e.complexity.Query.Images == nil {
+			break
+		}
+
+		args, err := ec.field_Query_images_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Images(childComplexity, args["containerID"].(uint)), true
+
+	case "Query.videos":
+		if e.complexity.Query.Videos == nil {
+			break
+		}
+
+		args, err := ec.field_Query_videos_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Videos(childComplexity, args["containerID"].(uint)), true
 
 	case "Video.assets":
 		if e.complexity.Video.Assets == nil {
@@ -314,10 +372,10 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
-		ec.unmarshalInputNewAdvertisement,
-		ec.unmarshalInputNewAssetReference,
-		ec.unmarshalInputNewImage,
+		ec.unmarshalInputNewAsset,
 		ec.unmarshalInputNewVideo,
+		ec.unmarshalInputUpdateAsset,
+		ec.unmarshalInputUpdateVideo,
 	)
 	first := true
 
@@ -434,72 +492,26 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
 // region    ***************************** args.gotpl *****************************
 
-func (ec *executionContext) field_Mutation_createAdvertisement_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+func (ec *executionContext) field_Mutation_createAsset_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Mutation_createAdvertisement_argsInput(ctx, rawArgs)
+	arg0, err := ec.field_Mutation_createAsset_argsInput(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
 	args["input"] = arg0
 	return args, nil
 }
-func (ec *executionContext) field_Mutation_createAdvertisement_argsInput(
+func (ec *executionContext) field_Mutation_createAsset_argsInput(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (model.NewAdvertisement, error) {
+) (model.NewAsset, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
 	if tmp, ok := rawArgs["input"]; ok {
-		return ec.unmarshalNNewAdvertisement2RocketContainerᚗgoᚋgraphᚋmodelᚐNewAdvertisement(ctx, tmp)
+		return ec.unmarshalNNewAsset2RocketContainerᚗgoᚋgraphᚋmodelᚐNewAsset(ctx, tmp)
 	}
 
-	var zeroVal model.NewAdvertisement
-	return zeroVal, nil
-}
-
-func (ec *executionContext) field_Mutation_createAssetReference_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := ec.field_Mutation_createAssetReference_argsInput(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-func (ec *executionContext) field_Mutation_createAssetReference_argsInput(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (model.NewAssetReference, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-	if tmp, ok := rawArgs["input"]; ok {
-		return ec.unmarshalNNewAssetReference2RocketContainerᚗgoᚋgraphᚋmodelᚐNewAssetReference(ctx, tmp)
-	}
-
-	var zeroVal model.NewAssetReference
-	return zeroVal, nil
-}
-
-func (ec *executionContext) field_Mutation_createImage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := ec.field_Mutation_createImage_argsInput(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["input"] = arg0
-	return args, nil
-}
-func (ec *executionContext) field_Mutation_createImage_argsInput(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (model.NewImage, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
-	if tmp, ok := rawArgs["input"]; ok {
-		return ec.unmarshalNNewImage2RocketContainerᚗgoᚋgraphᚋmodelᚐNewImage(ctx, tmp)
-	}
-
-	var zeroVal model.NewImage
+	var zeroVal model.NewAsset
 	return zeroVal, nil
 }
 
@@ -526,6 +538,98 @@ func (ec *executionContext) field_Mutation_createVideo_argsInput(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteAsset_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteAsset_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteAsset_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (uint, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNID2uint(ctx, tmp)
+	}
+
+	var zeroVal uint
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deleteVideo_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deleteVideo_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deleteVideo_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (uint, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNID2uint(ctx, tmp)
+	}
+
+	var zeroVal uint
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateAsset_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateAsset_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateAsset_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.UpdateAsset, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNUpdateAsset2RocketContainerᚗgoᚋgraphᚋmodelᚐUpdateAsset(ctx, tmp)
+	}
+
+	var zeroVal model.UpdateAsset
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_updateVideo_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_updateVideo_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_updateVideo_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.UpdateVideo, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNUpdateVideo2RocketContainerᚗgoᚋgraphᚋmodelᚐUpdateVideo(ctx, tmp)
+	}
+
+	var zeroVal model.UpdateVideo
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Query___type_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -546,6 +650,98 @@ func (ec *executionContext) field_Query___type_argsName(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_advertisements_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_advertisements_argsContainerID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["containerID"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_advertisements_argsContainerID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (uint, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("containerID"))
+	if tmp, ok := rawArgs["containerID"]; ok {
+		return ec.unmarshalNID2uint(ctx, tmp)
+	}
+
+	var zeroVal uint
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_container_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_container_argsContainerID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["containerID"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_container_argsContainerID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (uint, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("containerID"))
+	if tmp, ok := rawArgs["containerID"]; ok {
+		return ec.unmarshalNID2uint(ctx, tmp)
+	}
+
+	var zeroVal uint
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_images_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_images_argsContainerID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["containerID"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_images_argsContainerID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (uint, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("containerID"))
+	if tmp, ok := rawArgs["containerID"]; ok {
+		return ec.unmarshalNID2uint(ctx, tmp)
+	}
+
+	var zeroVal uint
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_videos_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_videos_argsContainerID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["containerID"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_videos_argsContainerID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (uint, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("containerID"))
+	if tmp, ok := rawArgs["containerID"]; ok {
+		return ec.unmarshalNID2uint(ctx, tmp)
+	}
+
+	var zeroVal uint
 	return zeroVal, nil
 }
 
@@ -649,184 +845,8 @@ func (ec *executionContext) field___Type_fields_argsIncludeDeprecated(
 
 // region    **************************** field.gotpl *****************************
 
-func (ec *executionContext) _Advertisement_id(ctx context.Context, field graphql.CollectedField, obj *model.Advertisement) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Advertisement_id(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Advertisement_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Advertisement",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Advertisement_name(ctx context.Context, field graphql.CollectedField, obj *model.Advertisement) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Advertisement_name(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Name, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Advertisement_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Advertisement",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Advertisement_url(ctx context.Context, field graphql.CollectedField, obj *model.Advertisement) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Advertisement_url(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.URL, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Advertisement_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Advertisement",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AssetReference_assetID(ctx context.Context, field graphql.CollectedField, obj *model.AssetReference) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_AssetReference_assetID(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.AssetID, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_AssetReference_assetID(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "AssetReference",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _AssetReference_assetType(ctx context.Context, field graphql.CollectedField, obj *model.AssetReference) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_AssetReference_assetType(ctx, field)
+func (ec *executionContext) _Asset_assetType(ctx context.Context, field graphql.CollectedField, obj *model.Asset) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Asset_assetType(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -856,9 +876,9 @@ func (ec *executionContext) _AssetReference_assetType(ctx context.Context, field
 	return ec.marshalNAssetType2RocketContainerᚗgoᚋgraphᚋmodelᚐAssetType(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_AssetReference_assetType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Asset_assetType(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "AssetReference",
+		Object:     "Asset",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -869,8 +889,8 @@ func (ec *executionContext) fieldContext_AssetReference_assetType(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _Container_ads(ctx context.Context, field graphql.CollectedField, obj *model.Container) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Container_ads(ctx, field)
+func (ec *executionContext) _Asset_id(ctx context.Context, field graphql.CollectedField, obj *model.Asset) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Asset_id(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -883,7 +903,7 @@ func (ec *executionContext) _Container_ads(ctx context.Context, field graphql.Co
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Ads, nil
+		return obj.ID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -895,12 +915,144 @@ func (ec *executionContext) _Container_ads(ctx context.Context, field graphql.Co
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Advertisement)
+	res := resTmp.(uint)
 	fc.Result = res
-	return ec.marshalNAdvertisement2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAdvertisementᚄ(ctx, field.Selections, res)
+	return ec.marshalNID2uint(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Container_ads(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Asset_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Asset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Asset_name(ctx context.Context, field graphql.CollectedField, obj *model.Asset) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Asset_name(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Name, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Asset_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Asset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Asset_url(ctx context.Context, field graphql.CollectedField, obj *model.Asset) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Asset_url(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.URL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Asset_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Asset",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Container_advertisements(ctx context.Context, field graphql.CollectedField, obj *model.Container) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Container_advertisements(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Advertisements, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Asset)
+	fc.Result = res
+	return ec.marshalNAsset2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Container_advertisements(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Container",
 		Field:      field,
@@ -908,14 +1060,16 @@ func (ec *executionContext) fieldContext_Container_ads(_ context.Context, field 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "assetType":
+				return ec.fieldContext_Asset_assetType(ctx, field)
 			case "id":
-				return ec.fieldContext_Advertisement_id(ctx, field)
+				return ec.fieldContext_Asset_id(ctx, field)
 			case "name":
-				return ec.fieldContext_Advertisement_name(ctx, field)
+				return ec.fieldContext_Asset_name(ctx, field)
 			case "url":
-				return ec.fieldContext_Advertisement_url(ctx, field)
+				return ec.fieldContext_Asset_url(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Advertisement", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Asset", field.Name)
 		},
 	}
 	return fc, nil
@@ -947,9 +1101,9 @@ func (ec *executionContext) _Container_id(ctx context.Context, field graphql.Col
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2uint(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Container_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -991,9 +1145,9 @@ func (ec *executionContext) _Container_images(ctx context.Context, field graphql
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.Image)
+	res := resTmp.([]*model.Asset)
 	fc.Result = res
-	return ec.marshalNImage2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐImageᚄ(ctx, field.Selections, res)
+	return ec.marshalNAsset2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Container_images(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1004,14 +1158,16 @@ func (ec *executionContext) fieldContext_Container_images(_ context.Context, fie
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
+			case "assetType":
+				return ec.fieldContext_Asset_assetType(ctx, field)
 			case "id":
-				return ec.fieldContext_Image_id(ctx, field)
+				return ec.fieldContext_Asset_id(ctx, field)
 			case "name":
-				return ec.fieldContext_Image_name(ctx, field)
+				return ec.fieldContext_Asset_name(ctx, field)
 			case "url":
-				return ec.fieldContext_Image_url(ctx, field)
+				return ec.fieldContext_Asset_url(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type Image", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type Asset", field.Name)
 		},
 	}
 	return fc, nil
@@ -1121,8 +1277,8 @@ func (ec *executionContext) fieldContext_Container_videos(_ context.Context, fie
 	return fc, nil
 }
 
-func (ec *executionContext) _Image_id(ctx context.Context, field graphql.CollectedField, obj *model.Image) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Image_id(ctx, field)
+func (ec *executionContext) _Mutation_createAsset(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_createAsset(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -1135,7 +1291,7 @@ func (ec *executionContext) _Image_id(ctx context.Context, field graphql.Collect
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.ID, nil
+		return ec.resolvers.Mutation().CreateAsset(rctx, fc.Args["input"].(model.NewAsset))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1147,161 +1303,21 @@ func (ec *executionContext) _Image_id(ctx context.Context, field graphql.Collect
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2uint(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Image_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Mutation_createAsset(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
-		Object:     "Image",
+		Object:     "Mutation",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Image_name(ctx context.Context, field graphql.CollectedField, obj *model.Image) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Image_name(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Name, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Image_name(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Image",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Image_url(ctx context.Context, field graphql.CollectedField, obj *model.Image) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Image_url(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.URL, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Image_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Image",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_createAdvertisement(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_createAdvertisement(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateAdvertisement(rctx, fc.Args["input"].(model.NewAdvertisement))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.Advertisement)
-	fc.Result = res
-	return ec.marshalNAdvertisement2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAdvertisement(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Mutation_createAdvertisement(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Advertisement_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Advertisement_name(ctx, field)
-			case "url":
-				return ec.fieldContext_Advertisement_url(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Advertisement", field.Name)
-		},
-	}
 	defer func() {
 		if r := recover(); r != nil {
 			err = ec.Recover(ctx, r)
@@ -1309,131 +1325,7 @@ func (ec *executionContext) fieldContext_Mutation_createAdvertisement(ctx contex
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createAdvertisement_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_createAssetReference(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_createAssetReference(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateAssetReference(rctx, fc.Args["input"].(model.NewAssetReference))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.AssetReference)
-	fc.Result = res
-	return ec.marshalNAssetReference2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetReference(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Mutation_createAssetReference(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "assetID":
-				return ec.fieldContext_AssetReference_assetID(ctx, field)
-			case "assetType":
-				return ec.fieldContext_AssetReference_assetType(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type AssetReference", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createAssetReference_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
-	}
-	return fc, nil
-}
-
-func (ec *executionContext) _Mutation_createImage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Mutation_createImage(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Mutation().CreateImage(rctx, fc.Args["input"].(model.NewImage))
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(*model.Image)
-	fc.Result = res
-	return ec.marshalNImage2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐImage(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Mutation_createImage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Mutation",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Image_id(ctx, field)
-			case "name":
-				return ec.fieldContext_Image_name(ctx, field)
-			case "url":
-				return ec.fieldContext_Image_url(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Image", field.Name)
-		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createImage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Mutation_createAsset_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1466,14 +1358,542 @@ func (ec *executionContext) _Mutation_createVideo(ctx context.Context, field gra
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Video)
+	res := resTmp.(uint)
 	fc.Result = res
-	return ec.marshalNVideo2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐVideo(ctx, field.Selections, res)
+	return ec.marshalNID2uint(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_createVideo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createVideo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteAsset(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteAsset(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteAsset(rctx, fc.Args["input"].(uint))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteAsset(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteAsset_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteVideo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deleteVideo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeleteVideo(rctx, fc.Args["input"].(uint))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deleteVideo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteVideo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateAsset(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateAsset(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateAsset(rctx, fc.Args["input"].(model.UpdateAsset))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateAsset(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateAsset_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_updateVideo(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_updateVideo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UpdateVideo(rctx, fc.Args["input"].(model.UpdateVideo))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_updateVideo(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_updateVideo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_advertisements(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_advertisements(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Advertisements(rctx, fc.Args["containerID"].(uint))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Asset)
+	fc.Result = res
+	return ec.marshalNAsset2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_advertisements(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "assetType":
+				return ec.fieldContext_Asset_assetType(ctx, field)
+			case "id":
+				return ec.fieldContext_Asset_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Asset_name(ctx, field)
+			case "url":
+				return ec.fieldContext_Asset_url(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Asset", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_advertisements_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_container(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_container(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Container(rctx, fc.Args["containerID"].(uint))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Container)
+	fc.Result = res
+	return ec.marshalNContainer2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐContainer(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_container(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "advertisements":
+				return ec.fieldContext_Container_advertisements(ctx, field)
+			case "id":
+				return ec.fieldContext_Container_id(ctx, field)
+			case "images":
+				return ec.fieldContext_Container_images(ctx, field)
+			case "name":
+				return ec.fieldContext_Container_name(ctx, field)
+			case "videos":
+				return ec.fieldContext_Container_videos(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Container", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_container_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_containers(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_containers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Containers(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Container)
+	fc.Result = res
+	return ec.marshalNContainer2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐContainerᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_containers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "advertisements":
+				return ec.fieldContext_Container_advertisements(ctx, field)
+			case "id":
+				return ec.fieldContext_Container_id(ctx, field)
+			case "images":
+				return ec.fieldContext_Container_images(ctx, field)
+			case "name":
+				return ec.fieldContext_Container_name(ctx, field)
+			case "videos":
+				return ec.fieldContext_Container_videos(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Container", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_images(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_images(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Images(rctx, fc.Args["containerID"].(uint))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Asset)
+	fc.Result = res
+	return ec.marshalNAsset2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_images(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "assetType":
+				return ec.fieldContext_Asset_assetType(ctx, field)
+			case "id":
+				return ec.fieldContext_Asset_id(ctx, field)
+			case "name":
+				return ec.fieldContext_Asset_name(ctx, field)
+			case "url":
+				return ec.fieldContext_Asset_url(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Asset", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_images_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_videos(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_videos(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Videos(rctx, fc.Args["containerID"].(uint))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Video)
+	fc.Result = res
+	return ec.marshalNVideo2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐVideoᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_videos(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
 		Field:      field,
 		IsMethod:   true,
 		IsResolver: true,
@@ -1504,7 +1924,7 @@ func (ec *executionContext) fieldContext_Mutation_createVideo(ctx context.Contex
 		}
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Mutation_createVideo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+	if fc.Args, err = ec.field_Query_videos_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -1668,9 +2088,9 @@ func (ec *executionContext) _Video_assets(ctx context.Context, field graphql.Col
 		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.AssetReference)
+	res := resTmp.([]uint)
 	fc.Result = res
-	return ec.marshalNAssetReference2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetReferenceᚄ(ctx, field.Selections, res)
+	return ec.marshalNID2ᚕuintᚄ(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Video_assets(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1680,13 +2100,7 @@ func (ec *executionContext) fieldContext_Video_assets(_ context.Context, field g
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "assetID":
-				return ec.fieldContext_AssetReference_assetID(ctx, field)
-			case "assetType":
-				return ec.fieldContext_AssetReference_assetType(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type AssetReference", field.Name)
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1806,9 +2220,9 @@ func (ec *executionContext) _Video_id(ctx context.Context, field graphql.Collect
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(uint)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNID2uint(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Video_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -3907,61 +4321,20 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
-func (ec *executionContext) unmarshalInputNewAdvertisement(ctx context.Context, obj any) (model.NewAdvertisement, error) {
-	var it model.NewAdvertisement
+func (ec *executionContext) unmarshalInputNewAsset(ctx context.Context, obj any) (model.NewAsset, error) {
+	var it model.NewAsset
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"name", "url"}
+	fieldsInOrder := [...]string{"assetType", "containerID", "name", "url", "videoID"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "name":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Name = data
-		case "url":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("url"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.URL = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputNewAssetReference(ctx context.Context, obj any) (model.NewAssetReference, error) {
-	var it model.NewAssetReference
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"assetID", "assetType", "videoID"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
-		case "assetID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("assetID"))
-			data, err := ec.unmarshalNID2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.AssetID = data
 		case "assetType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("assetType"))
 			data, err := ec.unmarshalNAssetType2RocketContainerᚗgoᚋgraphᚋmodelᚐAssetType(ctx, v)
@@ -3969,33 +4342,13 @@ func (ec *executionContext) unmarshalInputNewAssetReference(ctx context.Context,
 				return it, err
 			}
 			it.AssetType = data
-		case "videoID":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("videoID"))
-			data, err := ec.unmarshalNID2string(ctx, v)
+		case "containerID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("containerID"))
+			data, err := ec.unmarshalNID2uint(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.VideoID = data
-		}
-	}
-
-	return it, nil
-}
-
-func (ec *executionContext) unmarshalInputNewImage(ctx context.Context, obj any) (model.NewImage, error) {
-	var it model.NewImage
-	asMap := map[string]any{}
-	for k, v := range obj.(map[string]any) {
-		asMap[k] = v
-	}
-
-	fieldsInOrder := [...]string{"name", "url"}
-	for _, k := range fieldsInOrder {
-		v, ok := asMap[k]
-		if !ok {
-			continue
-		}
-		switch k {
+			it.ContainerID = data
 		case "name":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -4010,6 +4363,13 @@ func (ec *executionContext) unmarshalInputNewImage(ctx context.Context, obj any)
 				return it, err
 			}
 			it.URL = data
+		case "videoID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("videoID"))
+			data, err := ec.unmarshalNID2uint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VideoID = data
 		}
 	}
 
@@ -4023,13 +4383,20 @@ func (ec *executionContext) unmarshalInputNewVideo(ctx context.Context, obj any)
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"description", "expirationDate", "playbackUrl", "title", "videoType"}
+	fieldsInOrder := [...]string{"containerID", "description", "expirationDate", "playbackUrl", "title", "videoType"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "containerID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("containerID"))
+			data, err := ec.unmarshalNID2uint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContainerID = data
 		case "description":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -4071,6 +4438,137 @@ func (ec *executionContext) unmarshalInputNewVideo(ctx context.Context, obj any)
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputUpdateAsset(ctx context.Context, obj any) (model.UpdateAsset, error) {
+	var it model.UpdateAsset
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"assetType", "containerID", "id", "name", "url", "videoID"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "assetType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("assetType"))
+			data, err := ec.unmarshalNAssetType2RocketContainerᚗgoᚋgraphᚋmodelᚐAssetType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.AssetType = data
+		case "containerID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("containerID"))
+			data, err := ec.unmarshalNID2uint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContainerID = data
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalNID2uint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		case "name":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("name"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Name = data
+		case "url":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("url"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.URL = data
+		case "videoID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("videoID"))
+			data, err := ec.unmarshalNID2uint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VideoID = data
+		}
+	}
+
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputUpdateVideo(ctx context.Context, obj any) (model.UpdateVideo, error) {
+	var it model.UpdateVideo
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"containerID", "description", "expirationDate", "id", "playbackUrl", "title", "videoType"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "containerID":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("containerID"))
+			data, err := ec.unmarshalNID2uint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContainerID = data
+		case "description":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Description = data
+		case "expirationDate":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expirationDate"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpirationDate = data
+		case "id":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+			data, err := ec.unmarshalNID2uint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ID = data
+		case "playbackUrl":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("playbackUrl"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PlaybackURL = data
+		case "title":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Title = data
+		case "videoType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("videoType"))
+			data, err := ec.unmarshalNVideoType2RocketContainerᚗgoᚋgraphᚋmodelᚐVideoType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.VideoType = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -4079,73 +4577,34 @@ func (ec *executionContext) unmarshalInputNewVideo(ctx context.Context, obj any)
 
 // region    **************************** object.gotpl ****************************
 
-var advertisementImplementors = []string{"Advertisement"}
+var assetImplementors = []string{"Asset"}
 
-func (ec *executionContext) _Advertisement(ctx context.Context, sel ast.SelectionSet, obj *model.Advertisement) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, advertisementImplementors)
+func (ec *executionContext) _Asset(ctx context.Context, sel ast.SelectionSet, obj *model.Asset) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, assetImplementors)
 
 	out := graphql.NewFieldSet(fields)
 	deferred := make(map[string]*graphql.FieldSet)
 	for i, field := range fields {
 		switch field.Name {
 		case "__typename":
-			out.Values[i] = graphql.MarshalString("Advertisement")
+			out.Values[i] = graphql.MarshalString("Asset")
+		case "assetType":
+			out.Values[i] = ec._Asset_assetType(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "id":
-			out.Values[i] = ec._Advertisement_id(ctx, field, obj)
+			out.Values[i] = ec._Asset_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "name":
-			out.Values[i] = ec._Advertisement_name(ctx, field, obj)
+			out.Values[i] = ec._Asset_name(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		case "url":
-			out.Values[i] = ec._Advertisement_url(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
-var assetReferenceImplementors = []string{"AssetReference"}
-
-func (ec *executionContext) _AssetReference(ctx context.Context, sel ast.SelectionSet, obj *model.AssetReference) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, assetReferenceImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("AssetReference")
-		case "assetID":
-			out.Values[i] = ec._AssetReference_assetID(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "assetType":
-			out.Values[i] = ec._AssetReference_assetType(ctx, field, obj)
+			out.Values[i] = ec._Asset_url(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -4183,8 +4642,8 @@ func (ec *executionContext) _Container(ctx context.Context, sel ast.SelectionSet
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Container")
-		case "ads":
-			out.Values[i] = ec._Container_ads(ctx, field, obj)
+		case "advertisements":
+			out.Values[i] = ec._Container_advertisements(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -4231,55 +4690,6 @@ func (ec *executionContext) _Container(ctx context.Context, sel ast.SelectionSet
 	return out
 }
 
-var imageImplementors = []string{"Image"}
-
-func (ec *executionContext) _Image(ctx context.Context, sel ast.SelectionSet, obj *model.Image) graphql.Marshaler {
-	fields := graphql.CollectFields(ec.OperationContext, sel, imageImplementors)
-
-	out := graphql.NewFieldSet(fields)
-	deferred := make(map[string]*graphql.FieldSet)
-	for i, field := range fields {
-		switch field.Name {
-		case "__typename":
-			out.Values[i] = graphql.MarshalString("Image")
-		case "id":
-			out.Values[i] = ec._Image_id(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "name":
-			out.Values[i] = ec._Image_name(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "url":
-			out.Values[i] = ec._Image_url(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		default:
-			panic("unknown field " + strconv.Quote(field.Name))
-		}
-	}
-	out.Dispatch(ctx)
-	if out.Invalids > 0 {
-		return graphql.Null
-	}
-
-	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
-
-	for label, dfs := range deferred {
-		ec.processDeferredGroup(graphql.DeferredGroup{
-			Label:    label,
-			Path:     graphql.GetPath(ctx),
-			FieldSet: dfs,
-			Context:  ctx,
-		})
-	}
-
-	return out
-}
-
 var mutationImplementors = []string{"Mutation"}
 
 func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -4299,23 +4709,9 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
-		case "createAdvertisement":
+		case "createAsset":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createAdvertisement(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "createAssetReference":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createAssetReference(ctx, field)
-			})
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "createImage":
-			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
-				return ec._Mutation_createImage(ctx, field)
+				return ec._Mutation_createAsset(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -4323,6 +4719,34 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "createVideo":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createVideo(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteAsset":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteAsset(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteVideo":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteVideo(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateAsset":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateAsset(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updateVideo":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_updateVideo(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -4369,6 +4793,116 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "advertisements":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_advertisements(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "container":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_container(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "containers":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_containers(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "images":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_images(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "videos":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_videos(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -4804,11 +5338,7 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 // region    ***************************** type.gotpl *****************************
 
-func (ec *executionContext) marshalNAdvertisement2RocketContainerᚗgoᚋgraphᚋmodelᚐAdvertisement(ctx context.Context, sel ast.SelectionSet, v model.Advertisement) graphql.Marshaler {
-	return ec._Advertisement(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNAdvertisement2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAdvertisementᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Advertisement) graphql.Marshaler {
+func (ec *executionContext) marshalNAsset2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Asset) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -4832,7 +5362,7 @@ func (ec *executionContext) marshalNAdvertisement2ᚕᚖRocketContainerᚗgoᚋg
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNAdvertisement2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAdvertisement(ctx, sel, v[i])
+			ret[i] = ec.marshalNAsset2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAsset(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -4852,72 +5382,14 @@ func (ec *executionContext) marshalNAdvertisement2ᚕᚖRocketContainerᚗgoᚋg
 	return ret
 }
 
-func (ec *executionContext) marshalNAdvertisement2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAdvertisement(ctx context.Context, sel ast.SelectionSet, v *model.Advertisement) graphql.Marshaler {
+func (ec *executionContext) marshalNAsset2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAsset(ctx context.Context, sel ast.SelectionSet, v *model.Asset) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._Advertisement(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNAssetReference2RocketContainerᚗgoᚋgraphᚋmodelᚐAssetReference(ctx context.Context, sel ast.SelectionSet, v model.AssetReference) graphql.Marshaler {
-	return ec._AssetReference(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNAssetReference2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetReferenceᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.AssetReference) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNAssetReference2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetReference(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNAssetReference2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐAssetReference(ctx context.Context, sel ast.SelectionSet, v *model.AssetReference) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._AssetReference(ctx, sel, v)
+	return ec._Asset(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNAssetType2RocketContainerᚗgoᚋgraphᚋmodelᚐAssetType(ctx context.Context, v any) (model.AssetType, error) {
@@ -4946,27 +5418,11 @@ func (ec *executionContext) marshalNBoolean2bool(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
-	res, err := graphql.UnmarshalID(v)
-	return res, graphql.ErrorOnPath(ctx, err)
+func (ec *executionContext) marshalNContainer2RocketContainerᚗgoᚋgraphᚋmodelᚐContainer(ctx context.Context, sel ast.SelectionSet, v model.Container) graphql.Marshaler {
+	return ec._Container(ctx, sel, &v)
 }
 
-func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
-	_ = sel
-	res := graphql.MarshalID(v)
-	if res == graphql.Null {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-	}
-	return res
-}
-
-func (ec *executionContext) marshalNImage2RocketContainerᚗgoᚋgraphᚋmodelᚐImage(ctx context.Context, sel ast.SelectionSet, v model.Image) graphql.Marshaler {
-	return ec._Image(ctx, sel, &v)
-}
-
-func (ec *executionContext) marshalNImage2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐImageᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Image) graphql.Marshaler {
+func (ec *executionContext) marshalNContainer2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐContainerᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Container) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -4990,7 +5446,7 @@ func (ec *executionContext) marshalNImage2ᚕᚖRocketContainerᚗgoᚋgraphᚋm
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNImage2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐImage(ctx, sel, v[i])
+			ret[i] = ec.marshalNContainer2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐContainer(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -5010,28 +5466,64 @@ func (ec *executionContext) marshalNImage2ᚕᚖRocketContainerᚗgoᚋgraphᚋm
 	return ret
 }
 
-func (ec *executionContext) marshalNImage2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐImage(ctx context.Context, sel ast.SelectionSet, v *model.Image) graphql.Marshaler {
+func (ec *executionContext) marshalNContainer2ᚖRocketContainerᚗgoᚋgraphᚋmodelᚐContainer(ctx context.Context, sel ast.SelectionSet, v *model.Container) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._Image(ctx, sel, v)
+	return ec._Container(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalNNewAdvertisement2RocketContainerᚗgoᚋgraphᚋmodelᚐNewAdvertisement(ctx context.Context, v any) (model.NewAdvertisement, error) {
-	res, err := ec.unmarshalInputNewAdvertisement(ctx, v)
+func (ec *executionContext) unmarshalNID2uint(ctx context.Context, v any) (uint, error) {
+	res, err := graphql.UnmarshalUintID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNNewAssetReference2RocketContainerᚗgoᚋgraphᚋmodelᚐNewAssetReference(ctx context.Context, v any) (model.NewAssetReference, error) {
-	res, err := ec.unmarshalInputNewAssetReference(ctx, v)
-	return res, graphql.ErrorOnPath(ctx, err)
+func (ec *executionContext) marshalNID2uint(ctx context.Context, sel ast.SelectionSet, v uint) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalUintID(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
-func (ec *executionContext) unmarshalNNewImage2RocketContainerᚗgoᚋgraphᚋmodelᚐNewImage(ctx context.Context, v any) (model.NewImage, error) {
-	res, err := ec.unmarshalInputNewImage(ctx, v)
+func (ec *executionContext) unmarshalNID2ᚕuintᚄ(ctx context.Context, v any) ([]uint, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]uint, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2uint(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNID2ᚕuintᚄ(ctx context.Context, sel ast.SelectionSet, v []uint) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2uint(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) unmarshalNNewAsset2RocketContainerᚗgoᚋgraphᚋmodelᚐNewAsset(ctx context.Context, v any) (model.NewAsset, error) {
+	res, err := ec.unmarshalInputNewAsset(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
@@ -5056,8 +5548,14 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 	return res
 }
 
-func (ec *executionContext) marshalNVideo2RocketContainerᚗgoᚋgraphᚋmodelᚐVideo(ctx context.Context, sel ast.SelectionSet, v model.Video) graphql.Marshaler {
-	return ec._Video(ctx, sel, &v)
+func (ec *executionContext) unmarshalNUpdateAsset2RocketContainerᚗgoᚋgraphᚋmodelᚐUpdateAsset(ctx context.Context, v any) (model.UpdateAsset, error) {
+	res, err := ec.unmarshalInputUpdateAsset(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpdateVideo2RocketContainerᚗgoᚋgraphᚋmodelᚐUpdateVideo(ctx context.Context, v any) (model.UpdateVideo, error) {
+	res, err := ec.unmarshalInputUpdateVideo(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalNVideo2ᚕᚖRocketContainerᚗgoᚋgraphᚋmodelᚐVideoᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Video) graphql.Marshaler {

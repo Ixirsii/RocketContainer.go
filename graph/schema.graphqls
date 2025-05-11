@@ -1,7 +1,7 @@
 # ################################## Enums ################################### #
 
 enum AssetType {
-    AD,
+    ADVERTISEMENT,
     IMAGE
 }
 
@@ -10,28 +10,39 @@ enum VideoType {
     EPISODE,
     MOVIE
 }
+# ################################## Inputs ################################## #
 
-# Inputs
-
-input NewAdvertisement {
+input NewAsset {
+    assetType: AssetType!
+    containerID: ID!
     name: String!
     url: String!
-}
-
-input NewAssetReference {
-    assetID: ID!
-    assetType: AssetType!
     videoID: ID!
 }
 
-input NewImage {
-    name: String!
-    url: String!
-}
-
 input NewVideo {
+    containerID: ID!
     description: String!
     expirationDate: String!
+    playbackUrl: String!
+    title: String!
+    videoType: VideoType!
+}
+
+input UpdateAsset {
+    assetType: AssetType!
+    containerID: ID!
+    id: ID!
+    name: String!
+    url: String!
+    videoID: ID!
+}
+
+input UpdateVideo {
+    containerID: ID!
+    description: String!
+    expirationDate: String!
+    id: ID!
     playbackUrl: String!
     title: String!
     videoType: VideoType!
@@ -39,33 +50,23 @@ input NewVideo {
 
 # ################################## Types ################################### #
 
-type Advertisement {
+type Asset {
+    assetType: AssetType!
     id: ID!
     name: String!
     url: String!
 }
 
-type AssetReference {
-    assetID: ID!
-    assetType: AssetType!
-}
-
 type Container {
-    ads: [Advertisement!]!
+    advertisements: [Asset!]!
     id: ID!
-    images: [Image!]!
+    images: [Asset!]!
     name: String!
     videos: [Video!]!
 }
 
-type Image {
-    id: ID!
-    name: String!
-    url: String!
-}
-
 type Video {
-    assets: [AssetReference!]!
+    assets: [ID!]!
     description: String!
     expirationDate: String!
     id: ID!
@@ -74,12 +75,23 @@ type Video {
     videoType: VideoType!
 }
 
+# ################################# Queries ################################## #
+
+type Query {
+    advertisements(containerID: ID!): [Asset!]!
+    container(containerID: ID!): Container!
+    containers: [Container!]!
+    images(containerID: ID!): [Asset!]!
+    videos(containerID: ID!): [Video!]!
+}
 
 # ################################ Mutations ################################# #
 
 type Mutation {
-    createAdvertisement(input: NewAdvertisement!): Advertisement!
-    createAssetReference(input: NewAssetReference!): AssetReference!
-    createImage(input: NewImage!): Image!
-    createVideo(input: NewVideo!): Video!
+    createAsset(input: NewAsset!): ID!
+    createVideo(input: NewVideo!): ID!
+    deleteAsset(input: ID!): Boolean!
+    deleteVideo(input: ID!): Boolean!
+    updateAsset(input: UpdateAsset!): Boolean!
+    updateVideo(input: UpdateVideo!): Boolean!
 }

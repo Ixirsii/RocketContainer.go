@@ -2,6 +2,7 @@ package main
 
 import (
 	"RocketContainer.go/graph"
+	"RocketContainer.go/internal/data"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/lru"
@@ -10,9 +11,6 @@ import (
 	"github.com/dotenv-org/godotenvvault"
 	"github.com/vektah/gqlparser/v2/ast"
 	"go.uber.org/zap"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"moul.io/zapgorm2"
 	"net/http"
 	"os"
 )
@@ -20,28 +18,16 @@ import (
 const defaultPort = "8080"
 
 func main() {
-	logger, _ := zap.NewProduction()
+	logger := zap.Must(zap.NewProduction()).Named("RocketContainer")
 	defer logger.Sync()
+	zap.ReplaceGlobals(logger)
 
 	dotenvErr := godotenvvault.Load()
 	if dotenvErr != nil {
 		logger.Fatal("failed to load .env file", zap.Error(dotenvErr))
 	}
 
-	gormLogger := zapgorm2.New(logger)
-	gormLogger.SetAsDefault()
-
-	dbHost := os.Getenv("DB_HOST")
-	dbName := os.Getenv("DB_NAME")
-	dbPass := os.Getenv("DB_PASSWORD")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dsn := "host=" + dbHost + " user=" + dbUser + " password=" + dbPass + " dbname=" + dbName + " port=" + dbPort
-
-	db, dbErr := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormLogger})
-	if dbErr != nil {
-		logger.Fatal("failed to connect to database", zap.Error(dbErr))
-	}
+	data.InitDb()
 
 	port := os.Getenv("PORT")
 	if port == "" {

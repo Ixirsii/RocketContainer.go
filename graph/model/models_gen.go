@@ -9,51 +9,34 @@ import (
 	"strconv"
 )
 
-type Advertisement struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	URL  string `json:"url"`
-}
-
-type AssetReference struct {
-	AssetID   string    `json:"assetID"`
+type Asset struct {
 	AssetType AssetType `json:"assetType"`
+	ID        uint      `json:"id"`
+	Name      string    `json:"name"`
+	URL       string    `json:"url"`
 }
 
 type Container struct {
-	Ads    []*Advertisement `json:"ads"`
-	ID     string           `json:"id"`
-	Images []*Image         `json:"images"`
-	Name   string           `json:"name"`
-	Videos []*Video         `json:"videos"`
-}
-
-type Image struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	Advertisements []*Asset `json:"advertisements"`
+	ID             uint     `json:"id"`
+	Images         []*Asset `json:"images"`
+	Name           string   `json:"name"`
+	Videos         []*Video `json:"videos"`
 }
 
 type Mutation struct {
 }
 
-type NewAdvertisement struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
-}
-
-type NewAssetReference struct {
-	AssetID   string    `json:"assetID"`
-	AssetType AssetType `json:"assetType"`
-	VideoID   string    `json:"videoID"`
-}
-
-type NewImage struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
+type NewAsset struct {
+	AssetType   AssetType `json:"assetType"`
+	ContainerID uint      `json:"containerID"`
+	Name        string    `json:"name"`
+	URL         string    `json:"url"`
+	VideoID     uint      `json:"videoID"`
 }
 
 type NewVideo struct {
+	ContainerID    uint      `json:"containerID"`
 	Description    string    `json:"description"`
 	ExpirationDate string    `json:"expirationDate"`
 	PlaybackURL    string    `json:"playbackUrl"`
@@ -64,31 +47,50 @@ type NewVideo struct {
 type Query struct {
 }
 
+type UpdateAsset struct {
+	AssetType   AssetType `json:"assetType"`
+	ContainerID uint      `json:"containerID"`
+	ID          uint      `json:"id"`
+	Name        string    `json:"name"`
+	URL         string    `json:"url"`
+	VideoID     uint      `json:"videoID"`
+}
+
+type UpdateVideo struct {
+	ContainerID    uint      `json:"containerID"`
+	Description    string    `json:"description"`
+	ExpirationDate string    `json:"expirationDate"`
+	ID             uint      `json:"id"`
+	PlaybackURL    string    `json:"playbackUrl"`
+	Title          string    `json:"title"`
+	VideoType      VideoType `json:"videoType"`
+}
+
 type Video struct {
-	Assets         []*AssetReference `json:"assets"`
-	Description    string            `json:"description"`
-	ExpirationDate string            `json:"expirationDate"`
-	ID             string            `json:"id"`
-	PlaybackURL    string            `json:"playbackUrl"`
-	Title          string            `json:"title"`
-	VideoType      VideoType         `json:"videoType"`
+	Assets         []uint    `json:"assets"`
+	Description    string    `json:"description"`
+	ExpirationDate string    `json:"expirationDate"`
+	ID             uint      `json:"id"`
+	PlaybackURL    string    `json:"playbackUrl"`
+	Title          string    `json:"title"`
+	VideoType      VideoType `json:"videoType"`
 }
 
 type AssetType string
 
 const (
-	AssetTypeAd    AssetType = "AD"
-	AssetTypeImage AssetType = "IMAGE"
+	AssetTypeAdvertisement AssetType = "ADVERTISEMENT"
+	AssetTypeImage         AssetType = "IMAGE"
 )
 
 var AllAssetType = []AssetType{
-	AssetTypeAd,
+	AssetTypeAdvertisement,
 	AssetTypeImage,
 }
 
 func (e AssetType) IsValid() bool {
 	switch e {
-	case AssetTypeAd, AssetTypeImage:
+	case AssetTypeAdvertisement, AssetTypeImage:
 		return true
 	}
 	return false
