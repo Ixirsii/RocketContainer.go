@@ -3,25 +3,27 @@ package container
 
 import "RocketContainer.go/internal/data"
 
-/* ************************************************ Type definitions ************************************************ */
+/* ****************************************************************************************************************** *
+ *                                                  Type definitions                                                  *
+ * ****************************************************************************************************************** */
 
 // AdvertisementContainer advertisement container/controller type.
 type AdvertisementContainer struct {
-	ID   uint64
+	ID   uint
 	Name string
 	URL  string
 }
 
 // AssetReference asset (advertisement or image) reference container/controller type.
 type AssetReference struct {
-	AssetId   uint64
+	AssetId   uint
 	AssetType data.AssetType
 }
 
 // Container asset container/controller type.
 type Container struct {
 	Ads    []AdvertisementContainer
-	ID     uint64
+	ID     uint
 	Images []ImageContainer
 	Name   string
 	Videos []VideoContainer
@@ -29,7 +31,7 @@ type Container struct {
 
 // ImageContainer image container/controller type.
 type ImageContainer struct {
-	ID   uint64
+	ID   uint
 	Name string
 	URL  string
 }
@@ -39,13 +41,15 @@ type VideoContainer struct {
 	Assets         []AssetReference
 	Description    string
 	ExpirationDate string
-	ID             uint64
+	ID             uint
 	PlaybackUrl    string
 	Title          string
 	VideoType      data.VideoType
 }
 
-/* ********************************************** Type implementations ********************************************** */
+/* ****************************************************************************************************************** *
+ *                                                Type implementations                                                *
+ * ****************************************************************************************************************** */
 
 // NewAdvertisementContainer construct an AdvertisementContainer from data.Advertisement.
 func NewAdvertisementContainer(advertisement data.Advertisement) AdvertisementContainer {
